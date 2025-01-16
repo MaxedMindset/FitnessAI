@@ -809,7 +809,7 @@ func queryHuggingFaceAPI(query: String, completion: @escaping (String?) -> Void)
     let apiUrl = URL(string: "https://api-inference.huggingface.co/models/gpt2")!
     var request = URLRequest(url: apiUrl)
     request.httpMethod = "POST"
-    request.setValue("Bearer YOUR_HUGGING_FACE_API_KEY", forHTTPHeaderField: "Authorization")
+    request.setValue("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", forHTTPHeaderField: "Authorization")
 
     let body = ["inputs": query]
     request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
