@@ -951,9 +951,13 @@ TabView {
 }
 
 struct ContentView: View {
+    @State private var userQuery = ""
+    @State private var assistantResponse = ""
+    @State private var isLoading = false
+
     var body: some View {
         TabView {
-            AiAssistantView()
+            AiAssistantView(userQuery: $userQuery, assistantResponse: $assistantResponse, isLoading: $isLoading)
                 .tabItem {
                     Label("Assistant", systemImage: "brain")
                 }
@@ -963,6 +967,8 @@ struct ContentView: View {
                     Label("Plans", systemImage: "list.bullet")
                 }
         }
+    }
+}
         .background(
             LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
                 .edgesIgnoringSafeArea(.all)
