@@ -805,6 +805,19 @@ struct AiAssistantView: View {
     }
 }
 
+ func generatePlanWithAI() {
+        isLoading = true
+        let query = "Create a personalized training and nutrition plan for me."
+        queryHuggingFaceAPI(query: query) { response in
+            DispatchQueue.main.async {
+                isLoading = false
+                assistantResponse = response ?? "Failed to generate plan. Please try again."
+            }
+        }
+    }
+}
+
+
 func queryHuggingFaceAPI(query: String, completion: @escaping (String?) -> Void) {
     let apiUrl = URL(string: "https://api-inference.huggingface.co/models/gpt2")!
     var request = URLRequest(url: apiUrl)
