@@ -976,6 +976,156 @@ struct ContentView: View {
     }
 }
 
+struct TrainingPlanCreationView: View {
+    @State private var gender: String = ""
+    @State private var age: String = ""
+    @State private var height: String = ""
+    @State private var weight: String = ""
+    @State private var trainingDays: [String] = []
+    @State private var duration: String = ""
+    @State private var trainingType: String = ""
+    @State private var trainingMethod: String = ""
+    @State private var splitType: String = ""
+    @State private var generatedPlan: String = ""
+
+    let daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    let trainingTypes = ["Strength Training", "Endurance Training", "Calisthenics", "Cross Trainer", "Functional Training", "Split Training", "Circuit Training", "Eccentric Training", "Pilates", "Tabata", "Yoga", "HIIT"]
+    let trainingMethods = ["Pyramid", "Super Set", "Drop Set", "Giant Set", "Progressive Overload", "Time Under Tension"]
+    let splitOptions = ["Full Body", "Upper/Lower", "Push/Pull/Legs", "Bro Split", "Custom"]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Create Your Training Plan")
+                    .font(.largeTitle)
+                    .bold()
+                    .foregroundColor(.white)
+                    .padding()
+
+                Group {
+                    TextField("Gender (e.g., Male/Female)", text: $gender)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Age", text: $age)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Height (cm)", text: $height)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Weight (kg)", text: $weight)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+
+                VStack(alignment: .leading) {
+                    Text("Select Training Days")
+                        .font(.headline)
+                        .foregroundColor(.white)
+
+                    ForEach(daysOfWeek, id: \ .self) { day in
+                        Toggle(day, isOn: Binding(
+                            get: { trainingDays.contains(day) },
+                            set: { isSelected in
+                                if isSelected {
+                                    trainingDays.append(day)
+                                } else {
+                                    trainingDays.removeAll { $0 == day }
+                                }
+                            }
+                        ))
+                        .toggleStyle(SwitchToggleStyle(tint: .blue))
+                        .foregroundColor(.white)
+                    }
+                }
+
+                TextField("Training Duration (minutes)", text: $duration)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                Picker("Training Type", selection: $trainingType) {
+                    ForEach(trainingTypes, id: \ .self) { type in
+                        Text(type)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .foregroundColor(.white)
+
+                Picker("Training Method", selection: $trainingMethod) {
+                    ForEach(trainingMethods, id: \ .self) { method in
+                        Text(method)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .foregroundColor(.white)
+
+                Picker("Split Type", selection: $splitType) {
+                    ForEach(splitOptions, id: \ .self) { split in
+                        Text(split)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .foregroundColor(.white)
+
+                Button(action: generatePlan) {
+                    Text("Generate Plan")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
+
+                if !generatedPlan.isEmpty {
+                    Text("Your Training Plan:")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.top)
+
+                    ScrollView {
+                        Text(generatedPlan)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(10)
+                    }
+                }
+            }
+            .padding()
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+
+    func generatePlan() {
+        let profile = "Gender: \(gender), Age: \(age), Height: \(height) cm, Weight: \(weight) kg"
+        let schedule = "Training Days: \(trainingDays.joined(separator: ", ")), Duration: \(duration) minutes"
+        let details = "Type: \(trainingType), Method: \(trainingMethod), Split: \(splitType)"
+
+        generatedPlan = "\(profile)\n\n\(schedule)\n\n\(details)"
+    }
+}
+
+struct ContentView: View {
+    var body: some View {
+        TabView {
+            TrainingPlanCreationView()
+                .tabItem {
+                    Label("Plan Creator", systemImage: "list.bullet")
+                }
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+}
+
+
 class HealthKitManager {
     let healthStore = HKHealthStore()
 
