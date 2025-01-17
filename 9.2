@@ -180,6 +180,117 @@ struct MainView: View {
     }
 }
 
+struct RegistrationView: View {
+    @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var firstName: String = ""
+    @State private var lastName: String = ""
+    @State private var accountName: String = ""
+    @State private var phoneNumber: String = ""
+    @State private var age: String = ""
+    @State private var gender: String = ""
+    @State private var weight: String = ""
+    @State private var location: String = ""
+    @State private var showSuccessMessage = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Create an Account")
+                    .font(.largeTitle)
+                    .bold()
+                    .foregroundColor(.white)
+                    .padding()
+
+                Group {
+                    TextField("Email Address", text: $email)
+                        .keyboardType(.emailAddress)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    SecureField("Password", text: $password)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("First Name", text: $firstName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Last Name", text: $lastName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Account Name", text: $accountName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Phone Number (Optional)", text: $phoneNumber)
+                        .keyboardType(.phonePad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Age", text: $age)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Gender (e.g., Male/Female)", text: $gender)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Weight (kg)", text: $weight)
+                        .keyboardType(.numberPad)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    TextField("Location", text: $location)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+
+                Button(action: registerAccount) {
+                    Text("Register")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
+
+                if showSuccessMessage {
+                    Text("Registration Successful!")
+                        .foregroundColor(.green)
+                        .bold()
+                        .padding()
+                }
+            }
+            .padding()
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+
+    func registerAccount() {
+        guard !email.isEmpty, !password.isEmpty, !firstName.isEmpty, !lastName.isEmpty, !accountName.isEmpty, !age.isEmpty, !gender.isEmpty, !weight.isEmpty, !location.isEmpty else {
+            return
+        }
+
+        let userData = [
+            "email": email,
+            "password": password,
+            "firstName": firstName,
+            "lastName": lastName,
+            "accountName": accountName,
+            "phoneNumber": phoneNumber,
+            "age": age,
+            "gender": gender,
+            "weight": weight,
+            "location": location
+        ]
+
+        saveUserData(userData)
+        showSuccessMessage = true
+    }
+
+    func saveUserData(_ data: [String: String]) {
+        // Save user data locally (e.g., UserDefaults or local database)
+        UserDefaults.standard.set(data, forKey: "userData")
+    }
+}
+
 struct DashboardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
