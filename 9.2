@@ -1055,6 +1055,147 @@ struct HealthIntegrationView: View {
     }
 }
 
+
+struct SocialSharingView: View {
+    @State private var posts: [Post] = [
+        Post(user: "John", content: "Ran 5km today! Feeling great! 😊", likes: 3),
+        Post(user: "Alice", content: "Completed a 30-minute HIIT session! 💪", likes: 5)
+    ]
+
+    var body: some View {
+        VStack {
+            Text("Community Feed")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            List(posts) { post in
+                VStack(alignment: .leading) {
+                    Text(post.user)
+                        .font(.headline)
+                        .foregroundColor(.yellow)
+                    Text(post.content)
+                        .foregroundColor(.white)
+                    HStack {
+                        Button(action: {
+                            likePost(post: post)
+                        }) {
+                            HStack {
+                                Image(systemName: "hand.thumbsup.fill")
+                                Text("\(post.likes)")
+                            }
+                            .foregroundColor(.blue)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .listRowBackground(Color.black)
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+
+    func likePost(post: Post) {
+        if let index = posts.firstIndex(where: { $0.id == post.id }) {
+            posts[index].likes += 1
+        }
+    }
+}
+
+struct Post: Identifiable {
+    let id = UUID()
+    let user: String
+    let content: String
+    var likes: Int
+}
+
+struct ChallengesView: View {
+    @State private var challenges: [Challenge] = [
+        Challenge(name: "Run 10km", progress: 5, goal: 10),
+        Challenge(name: "50 Push-ups Daily", progress: 3, goal: 7)
+    ]
+
+    var body: some View {
+        VStack {
+            Text("Challenges")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            List(challenges) { challenge in
+                VStack(alignment: .leading) {
+                    Text(challenge.name)
+                        .font(.headline)
+                        .foregroundColor(.green)
+                    ProgressView(value: Double(challenge.progress) / Double(challenge.goal))
+                        .padding()
+                    Text("\(challenge.progress)/\(challenge.goal) Days Completed")
+                        .foregroundColor(.white)
+                }
+            }
+            .listRowBackground(Color.black)
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+}
+
+struct Challenge: Identifiable {
+    let id = UUID()
+    let name: String
+    var progress: Int
+    let goal: Int
+}
+
+struct ProgressPhotosView: View {
+    @State private var photos: [ProgressPhoto] = [
+        ProgressPhoto(imageName: "progress1", date: "2023-12-01"),
+        ProgressPhoto(imageName: "progress2", date: "2024-01-01")
+    ]
+
+    var body: some View {
+        VStack {
+            Text("Progress Photos")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            ScrollView {
+                ForEach(photos) { photo in
+                    VStack {
+                        Image(photo.imageName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 200)
+                            .cornerRadius(10)
+                            .padding()
+                        Text("Taken on: \(photo.date)")
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+}
+
+struct ProgressPhoto: Identifiable {
+    let id = UUID()
+    let imageName: String
+    let date: String
+}
+
 struct ContentView: View {
     var body: some View {
         TabView {
