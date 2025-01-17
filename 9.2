@@ -975,6 +975,983 @@ struct ContentView: View {
         )
     }
 }
+import SwiftUI
+import PhotosUI
+import Foundation
+import SQLite3
+
+class DatabaseManager {
+    static let shared = DatabaseManager()
+    private var db: OpaquePointer?
+
+    private init() {
+        openDatabase()
+        createTable()
+    }
+
+    func openDatabase() {
+        let fileURL = try! FileManager.default
+            .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            .appendingPathComponent("FitnessAI.sqlite")
+
+        if sqlite3_open(fileURL.path, &db) != SQLITE_OK {
+            print("Error opening database")
+        }
+    }
+
+    func createTable() {
+        let createTableQuery = """
+        CREATE TABLE IF NOT EXISTS UserPlans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT,
+            content TEXT
+        );
+        """
+        if sqlite3_exec(db, createTableQuery, nil, nil, nil) != SQLITE_OK {
+            print("Error creating table")
+        }
+    }
+
+    func insertPlan(type: String, content: String) {
+        let insertQuery = "INSERT INTO UserPlans (type, content) VALUES (?, ?);"
+        var statement: OpaquePointer?
+
+        if sqlite3_prepare_v2(db, insertQuery, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_text(statement, 1, type, -1, nil)
+            sqlite3_bind_text(statement, 2, content, -1, nil)
+
+            if sqlite3_step(statement) == SQLITE_DONE {
+                print("Successfully inserted plan")
+            } else {
+                print("Could not insert plan")
+            }
+        } else {
+            print("Insert statement could not be prepared")
+        }
+        sqlite3_finalize(statement)
+    }
+
+    func fetchPlans() -> [(id: Int, type: String, content: String)] {
+        let fetchQuery = "SELECT * FROM UserPlans;"
+        var statement: OpaquePointer?
+
+        var plans: [(id: Int, type: String, content: String)] = []
+
+        if sqlite3_prepare_v2(db, fetchQuery, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let id = Int(sqlite3_column_int(statement, 0))
+                let type = String(cString: sqlite3_column_text(statement, 1))
+                let content = String(cString: sqlite3_column_text(statement, 2))
+                plans.append((id, type, content))
+            }
+        } else {
+            print("Fetch statement could not be prepared")
+        }
+        sqlite3_finalize(statement)
+        return plans
+    }
+}
+
+
+
+struct MainView: View {
+    @State private var selectedTab = 0
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                TabView(selection: $selectedTab) {
+                    DashboardView()
+                        .tabItem {
+                            Label("Dashboard", systemImage: "house")
+                        }
+                        .tag(0)
+
+                    TrainingPlanView()
+                        .tabItem {
+                            Label("Training Plan", systemImage: "figure.walk")
+                        }
+                        .tag(1)
+
+                    NutritionPlanView()
+                        .tabItem {
+                            Label("Nutrition Plan", systemImage: "fork.knife")
+                        }
+                        .tag(2)
+
+                    ProgressPhotosView()
+                        .tabItem {
+                            Label("Progress", systemImage: "camera")
+                        }
+                        .tag(3)
+
+                    FriendsView()
+                        .tabItem {
+                            Label("Friends", systemImage: "person.3")
+                        }
+                        .tag(4)
+
+                    KnowledgeView()
+                        .tabItem {
+                            Label("Knowledge", systemImage: "book")
+                        }
+                        .tag(5)
+                    
+                    RunningTrackerView() 
+                        .tabItem {
+                            Label("Running", systemImage: "figure.run")
+                        }
+                        .tag(6)
+
+                    RankingView()
+                        .tabItem {
+                            Label("Ranking", systemImage: "list.number")
+                        }
+                        .tag(7)
+                }
+                .background(Color.black.edgesIgnoringSafeArea(.all))
+            }
+            .navigationBarTitle("Fitness AI", displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        NavigationLink(destination: TrainingPlanView()) {
+                            Label("Training Plan", systemImage: "figure.walk")
+                        }
+
+                        NavigationLink(destination: NutritionPlanView()) {
+                            Label("Nutrition Plan", systemImage: "fork.knife")
+                        }
+
+                        NavigationLink(destination: ProgressPhotosView()) {
+                            Label("Progress", systemImage: "camera")
+                        }
+
+                        NavigationLink(destination: FriendsView()) {
+                            Label("Friends", systemImage: "person.3")
+                        }
+
+                        NavigationLink(destination: KnowledgeView()) {
+                            Label("Knowledge", systemImage: "book")
+                        }
+
+                        NavigationLink(destination: RunningTrackerView()) {
+                            Label("Running", systemImage: "figure.run")
+                        }
+
+                        NavigationLink(destination: RankingView()) {
+                            Label("Ranking", systemImage: "list.number")
+                        }
+
+                        NavigationLink(destination: SettingsView()) {
+                            Label("Settings", systemImage: "gear")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct DashboardView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Welcome to Fitness AI")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+
+            NavigationLink(destination: TrainingPlanView()) {
+                DashboardTile(title: "Training Plan", icon: "figure.walk")
+            }
+
+            NavigationLink(destination: NutritionPlanView()) {
+                DashboardTile(title: "Nutrition Plan", icon: "fork.knife")
+            }
+
+            NavigationLink(destination: ProgressPhotosView()) {
+                DashboardTile(title: "Track Progress", icon: "camera")
+            }
+
+            NavigationLink(destination: FriendsView()) {
+                DashboardTile(title: "Friends & Rankings", icon: "person.3")
+            }
+        }
+        .padding()
+        .background(Color.black)
+        .navigationTitle("Dashboard")
+    }
+}
+
+struct DashboardTile: View {
+    let title: String
+    let icon: String
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.largeTitle)
+                .foregroundColor(.blue)
+
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.white)
+
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.3))
+        .cornerRadius(10)
+        .shadow(color: .gray, radius: 5, x: 0, y: 5)
+    }
+}
+
+struct ProgressPhotosView: View {
+    @State private var progressImages: [ProgressImage] = []
+    @State private var selectedItem: PhotosPickerItem? = nil
+
+    var body: some View {
+        VStack {
+            PhotosPicker("Add Progress Photo", selection: $selectedItem, matching: .images, photoLibrary: .shared())
+                .buttonStyle(.borderedProminent)
+                .padding()
+
+            List(progressImages) { image in
+                if let uiImage = UIImage(data: image.data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 200)
+                        .cornerRadius(10)
+                }
+            }
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .navigationTitle("Progress Photos")
+        .onChange(of: selectedItem) { newItem in
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    let newImage = ProgressImage(id: UUID(), data: data)
+                    progressImages.append(newImage)
+                }
+            }
+        }
+    }
+}
+
+struct ProgressImage: Identifiable {
+    let id: UUID
+    let data: Data
+}
+
+struct SettingsView: View {
+    @State private var selectedLanguage = "English"
+    let languages = ["English", "German", "Spanish"]
+
+    var body: some View {
+        Form {
+            Section(header: Text("Account")) {
+                NavigationLink(destination: Text("Profile Details")) {
+                    Text("Profile")
+                }
+            }
+
+            Section(header: Text("App Settings")) {
+                Picker("Language", selection: $selectedLanguage) {
+                    ForEach(languages, id: \ .self) { language in
+                        Text(language)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+            }
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .navigationTitle("Settings")
+    }
+}
+
+struct TrainingPlanView: View {
+    @State private var weeklyPlan: [[String]] = []
+    let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    var body: some View {
+        VStack {
+            Text("Weekly Training Plan")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            Button(action: generateWeeklyPlan) {
+                Text("Generate Weekly Plan")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+
+            if !weeklyPlan.isEmpty {
+                List(days.indices, id: \ .self) { index in
+                    VStack(alignment: .leading) {
+                        Text(days[index])
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        ForEach(weeklyPlan[index], id: \ .self) { item in
+                            Text(item)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .background(Color.black)
+            }
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .navigationTitle("Training Plan")
+    }
+
+    func generateWeeklyPlan() {
+        weeklyPlan = [
+            ["Cardio (30 min)"],
+            ["Upper Body Strength (4 sets x 10 reps)"],
+            ["HIIT (20 min)"],
+            ["Lower Body Strength (4 sets x 8 reps)"],
+            ["Push Day: Chest & Shoulders"],
+            ["Pull Day: Back & Biceps"],
+            ["Active Recovery"]
+        ]
+    }
+}
+
+struct NutritionPlanView: View {
+    @State private var weeklyMeals: [[Meal]] = []
+    let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    var body: some View {
+        VStack {
+            Text("Weekly Nutrition Plan")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            Button(action: generateWeeklyMeals) {
+                Text("Generate Weekly Plan")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+
+            if !weeklyMeals.isEmpty {
+                List(days.indices, id: \.self) { index in
+                    VStack(alignment: .leading) {
+                        Text(days[index])
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        ForEach(weeklyMeals[index]) { meal in // `Meal` ist jetzt `Identifiable`
+                            VStack(alignment: .leading) {
+                                Text(meal.name)
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text(meal.instructions)
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                Text("Calories: \(meal.calories)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.yellow)
+                                Text("Vitamins: \(meal.vitamins)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+                .background(Color.black)
+            }
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .navigationTitle("Nutrition Plan")
+    }
+
+    func generateWeeklyMeals() {
+        weeklyMeals = [
+            [
+                Meal(name: "Grilled Chicken Salad", instructions: "Grill chicken, chop veggies.", calories: 350, vitamins: "A, C, K"),
+                Meal(name: "Oatmeal", instructions: "Cook oats, add fruits.", calories: 300, vitamins: "B, Fiber")
+            ],
+            [
+                Meal(name: "Avocado Toast", instructions: "Toast bread, mash avocado.", calories: 250, vitamins: "E, Potassium")
+            ],
+            [
+                Meal(name: "Smoothie Bowl", instructions: "Blend fruits, top with granola.", calories: 400, vitamins: "A, C, E")
+            ],
+            [
+                Meal(name: "Grilled Salmon", instructions: "Grill salmon, serve with salad.", calories: 450, vitamins: "D, Omega-3")
+            ],
+            [
+                Meal(name: "Chicken Stir-fry", instructions: "Cook chicken, add mixed vegetables and sauce.", calories: 500, vitamins: "A, C")
+            ],
+            [
+                Meal(name: "Quinoa Bowl", instructions: "Cook quinoa, add beans, corn, and avocado.", calories: 400, vitamins: "B, Magnesium")
+            ],
+            [
+                Meal(name: "Vegetable Soup", instructions: "Simmer mixed vegetables in broth.", calories: 200, vitamins: "C, K")
+            ]
+        ]
+    }
+}
+
+struct Meal: Identifiable {
+    let id = UUID()
+    let name: String
+    let instructions: String
+    let calories: Int
+    let vitamins: String
+}
+
+struct FriendsView: View {
+    @State private var friends: [Friend] = []
+    @State private var friendName: String = ""
+    @State private var rankings: [Ranking] = [
+        Ranking(name: "John", score: 1200),
+        Ranking(name: "Doe", score: 1150),
+        Ranking(name: "Alice", score: 1100)
+    ]
+
+    var body: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Friends & Rankings")
+                    .font(.largeTitle)
+                    .bold()
+                    .foregroundColor(.white)
+
+                HStack {
+                    TextField("Add Friend", text: $friendName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    Button(action: addFriend) {
+                        Text("Add")
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                    }
+                }
+
+                Text("Your Friends")
+                    .font(.title2)
+                    .bold()
+                    .foregroundColor(.white)
+
+                List(friends) { friend in
+                    Text(friend.name)
+                        .foregroundColor(.white)
+                }
+                .background(Color.black)
+
+                Text("Rankings")
+                    .font(.title2)
+                    .bold()
+                    .foregroundColor(.white)
+
+                List(rankings) { ranking in
+                    HStack {
+                        Text(ranking.name)
+                            .foregroundColor(.white)
+                        Spacer()
+                        Text("Score: \(ranking.score)")
+                            .foregroundColor(.yellow)
+                    }
+                }
+                .background(Color.black)
+            }
+            .padding()
+            .background(Color.black)
+            .navigationTitle("Friends")
+        }
+    }
+
+    func addFriend() {
+        guard !friendName.isEmpty else { return }
+        friends.append(Friend(name: friendName))
+        friendName = ""
+    }
+}
+
+struct Friend: Identifiable {
+    let id = UUID()
+    let name: String
+}
+
+struct Ranking: Identifiable {
+    let id = UUID()
+    let name: String
+    let score: Int
+}
+
+struct KnowledgeView: View {
+    @State private var dailyAdvice: [String] = [
+        "Stay hydrated during workouts.",
+        "Stretch before and after exercises to prevent injuries.",
+        "Incorporate strength training for better endurance.",
+        "Track your progress to stay motivated."
+    ]
+
+    var body: some View {
+        VStack {
+            Text("Daily Fitness Advice")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            List(dailyAdvice, id: \ .self) { advice in
+                Text(advice)
+                    .foregroundColor(.white)
+            }
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .navigationTitle("Knowledge")
+    }
+}
+
+struct RunningTrackerView: View {
+    @State private var runs: [Run] = []
+    @State private var distance: String = ""
+    @State private var duration: String = ""
+
+    var body: some View {
+        VStack {
+            Text("Track Your Runs")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            Form {
+                TextField("Distance (km)", text: $distance)
+                    .keyboardType(.decimalPad)
+
+                TextField("Duration (min)", text: $duration)
+                    .keyboardType(.decimalPad)
+
+                Button(action: trackRun) {
+                    Text("Add Run")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+            }
+
+            List(runs) { run in
+                VStack(alignment: .leading) {
+                    Text("Distance: \(run.distance) km")
+                        .foregroundColor(.white)
+                    Text("Duration: \(run.duration) min")
+                        .foregroundColor(.gray)
+                }
+            }
+            .background(Color.black)
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .navigationTitle("Running Tracker")
+    }
+
+    func trackRun() {
+        guard let distanceValue = Double(distance), let durationValue = Double(duration) else { return }
+        let newRun = Run(distance: distanceValue, duration: durationValue)
+        runs.append(newRun)
+        distance = ""
+        duration = ""
+    }
+}
+
+struct Run: Identifiable {
+    let id = UUID()
+    let distance: Double
+    let duration: Double
+}
+
+struct LoginView: View {
+    @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var isLoggedIn: Bool = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Login to Fitness AI")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+
+            TextField("Email", text: $email)
+                .padding()
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(10)
+                .foregroundColor(.white)
+
+            SecureField("Password", text: $password)
+                .padding()
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(10)
+                .foregroundColor(.white)
+
+            Button(action: login) {
+                Text("Login")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+
+            Button(action: {
+                isLoggedIn = true
+            }) {
+                Text("Continue as Guest")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+
+        }
+        .padding()
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+        .fullScreenCover(isPresented: $isLoggedIn) {
+            MainView()
+        }
+    }
+
+    func login() {
+        // Implement email and password authentication logic here.
+        isLoggedIn = true
+    }
+}
+
+struct RankingView: View {
+    @State private var friendRankings: [Ranking] = [
+        Ranking(name: "John", score: 120),
+        Ranking(name: "Alice", score: 115),
+        Ranking(name: "Bob", score: 110)
+    ]
+
+    @State private var nationalRankings: [Ranking] = [
+        Ranking(name: "Fittest Athlete", score: 200),
+        Ranking(name: "Runner Up", score: 190),
+        Ranking(name: "Challenger", score: 180)
+    ]
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Rankings")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            Text("Friends")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.white)
+
+            List(friendRankings) { ranking in
+                HStack {
+                    Text(ranking.name)
+                        .foregroundColor(.white)
+                    Spacer()
+                    Text("Score: \(ranking.score)")
+                        .foregroundColor(.yellow)
+                }
+                .listRowBackground(Color.black)
+            }
+
+            Text("National")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.white)
+
+            List(nationalRankings) { ranking in
+                HStack {
+                    Text(ranking.name)
+                        .foregroundColor(.white)
+                    Spacer()
+                    Text("Score: \(ranking.score)")
+                        .foregroundColor(.yellow)
+                }
+                .listRowBackground(Color.black)
+            }
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+}
+
+struct AiAssistantView: View {
+    @State private var userQuery: String = ""
+    @State private var assistantResponse: String = "Welcome! Ask me anything about fitness, training, or nutrition."
+    @State private var isLoading = false
+
+    var body: some View {
+        VStack {
+            Text("AI Fitness Assistant")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            TextField("Type your question here...", text: $userQuery)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding()
+
+            if isLoading {
+                ProgressView("Generating response...")
+                    .padding()
+            } else {
+                Button(action: generateResponse) {
+                    Text("Ask AI")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
+            }
+            
+                Button(action: generateResponse) {
+                    Text("Ask AI")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
+
+                Button(action: generatePlanWithAI) {
+                    Text("Generate Training & Nutrition Plan")
+                        .frame(maxWidth: .infinity) 
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding()
+            }
+            ScrollView {
+                Text(assistantResponse)
+                    .foregroundColor(.white)
+                    .padding()
+            }
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(10)
+            .padding()
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+
+    func generateResponse() {
+        guard !userQuery.isEmpty else {
+            assistantResponse = "Please type something to ask!"
+            return
+        }
+
+        isLoading = true
+        queryHuggingFaceAPI(query: userQuery) { response in
+            DispatchQueue.main.async {
+                isLoading = false
+                assistantResponse = response ?? "Sorry, I couldn't generate a response. Please try again."
+            }
+        }
+    }
+}
+
+ func generatePlanWithAI() {
+        isLoading = true
+        let query = "Create a personalized training and nutrition plan for me."
+        queryHuggingFaceAPI(query: query) { response in
+            DispatchQueue.main.async {
+                isLoading = false
+                assistantResponse = response ?? "Failed to generate plan. Please try again."
+            }
+        }
+    }
+}
+
+
+func queryHuggingFaceAPI(query: String, completion: @escaping (String?) -> Void) {
+    let apiUrl = URL(string: "https://api-inference.huggingface.co/models/gpt2")!
+    var request = URLRequest(url: apiUrl)
+    request.httpMethod = "POST"
+    request.setValue("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", forHTTPHeaderField: "Authorization")
+
+    let body = ["inputs": query]
+    request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
+
+    URLSession.shared.dataTask(with: request) { data, response, error in
+        guard error == nil, let data = data else {
+            completion(nil)
+            return
+        }
+
+        if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let generatedText = result["generated_text"] as? String {
+            completion(generatedText)
+        } else {
+            completion(nil)
+        }
+    }.resume()
+}
+
+struct NutritionAndTrainingPlanView: View {
+    @State private var generatedPlan: String = ""
+    @State private var isLoading = false
+
+    var body: some View {
+        VStack {
+            Text("AI-Generated Plans")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            Button(action: generatePlan) {
+                Text("Generate Training and Nutrition Plan")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .padding()
+
+            if isLoading {
+                ProgressView("Generating plan...")
+                    .padding()
+            } else {
+                ScrollView {
+                    Text(generatedPlan)
+                        .foregroundColor(.white)
+                        .padding()
+                }
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(10)
+                .padding()
+            }
+        }
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+
+   func saveGeneratedPlan(type: String, content: String) {
+    DatabaseManager.shared.insertPlan(type: type, content: content)
+}
+
+func generatePlan() {
+    isLoading = true
+    let query = "Create a combined training and nutrition plan for a week."
+    queryHuggingFaceAPI(query: query) { response in
+        DispatchQueue.main.async {
+            isLoading = false
+            if let plan = response {
+                generatedPlan = plan
+                saveGeneratedPlan(type: "Training & Nutrition", content: plan)
+            } else {
+                generatedPlan = "Failed to generate plan. Please try again."
+            }
+        }
+    }
+}
+
+struct SavedPlansView: View {
+    @State private var plans: [(id: Int, type: String, content: String)] = []
+
+    var body: some View {
+        VStack {
+            Text("Saved Plans")
+                .font(.largeTitle)
+                .bold()
+                .foregroundColor(.white)
+                .padding()
+
+            List(plans, id: \.id) { plan in
+                VStack(alignment: .leading) {
+                    Text(plan.type)
+                        .font(.headline)
+                        .foregroundColor(.yellow)
+                    Text(plan.content)
+                        .foregroundColor(.white)
+                        .padding(.top, 2)
+                }
+            }
+        }
+        .onAppear {
+            plans = DatabaseManager.shared.fetchPlans()
+        }
+        .background(Color.black.edgesIgnoringSafeArea(.all))
+    }
+}
+
+TabView {
+    AiAssistantView()
+        .tabItem {
+            Label("Assistant", systemImage: "brain")
+        }
+
+    NutritionAndTrainingPlanView()
+        .tabItem {
+            Label("Plans", systemImage: "list.bullet")
+        }
+
+    SavedPlansView()
+        .tabItem {
+            Label("Saved Plans", systemImage: "archivebox")
+        }
+}
+
+struct ContentView: View {
+    @State private var userQuery = ""
+    @State private var assistantResponse = ""
+    @State private var isLoading = false
+
+    var body: some View {
+        TabView {
+            AiAssistantView(userQuery: $userQuery, assistantResponse: $assistantResponse, isLoading: $isLoading)
+                .tabItem {
+                    Label("Assistant", systemImage: "brain")
+                }
+
+            NutritionAndTrainingPlanView()
+                .tabItem {
+                    Label("Plans", systemImage: "list.bullet")
+                }
+        }
+    }
+}
+        .background(
+            LinearGradient(gradient: Gradient(colors: [.black, .gray]), startPoint: .top, endPoint: .bottom)
+                .edgesIgnoringSafeArea(.all)
+        )
+    }
+}
 
 @main
 struct FitnessAIApp: App {
